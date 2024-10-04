@@ -1,0 +1,98 @@
+CREATE TABLE Customers (
+    customer_id INT AUTO_INCREMENT PRIMARY KEY,
+    first_name VARCHAR(50) NOT NULL,
+    last_name VARCHAR(50) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    phone_number VARCHAR(20),
+    address TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE Products (
+    product_id INT AUTO_INCREMENT PRIMARY KEY,
+    product_name VARCHAR(100) NOT NULL,
+    description TEXT,
+    price DECIMAL(10, 2) NOT NULL,
+    stock_quantity INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE Orders (
+    order_id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT,
+    order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    total_amount DECIMAL(10, 2),
+    FOREIGN KEY (customer_id) REFERENCES Customers(customer_id) ON DELETE CASCADE
+);
+
+CREATE TABLE Order_Items (
+    order_item_id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT,
+    product_id INT,
+    quantity INT NOT NULL,
+    price_per_unit DECIMAL(10, 2) NOT NULL,
+    total_price DECIMAL(10, 2) NOT NULL,
+    FOREIGN KEY (order_id) REFERENCES Orders(order_id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES Products(product_id) ON DELETE CASCADE
+);
+
+CREATE TABLE Payments (
+    payment_id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT,
+    payment_method VARCHAR(50) NOT NULL,
+    payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    amount DECIMAL(10, 2) NOT NULL,
+    FOREIGN KEY (order_id) REFERENCES Orders(order_id) ON DELETE CASCADE
+);
+
+
+explain analyze
+select c.first_name, c.last_name, p.product_name, sum(oi.total_price) AS total_spent
+from customers c
+join Orders o ON c.customer_id = o.customer_id
+join Order_Items oi on o.order_id = oi.order_id
+join Payments pay on o.order_id = pay.order_id
+join Products p on oi.product_id = p.product_id
+where year(pay.payment_date) = 2023
+group by c.customer_id, p.product_name
+order by total_spent desc 
+
+
+
+
+create index cust_index on customers(customer_id);
+create index prod_index on products(product_id);
+create index year_index on payments(payment_date);
+
+drop index cust_index on customers;
+drop index prod_index on products;
+drop index year_index on payments;
+
+
+explain analyze 
+with filtered  as (
+	select o.order_id
+	from orders o
+	join payments p on o.order_id = p.order_id
+	where year(p.payment_date) = 2023
+)	
+select 	c.first_name, c.last_name, p.product_name, sum(oi.total_price) AS total_spent
+from customers c
+join Orders o ON c.customer_id = o.customer_id
+join Order_Items oi on o.order_id = oi.order_id
+join filtered f ON o.order_id = f.order_id
+join Products p on oi.product_id = p.product_id
+group by c.customer_id, p.product_name
+order by total_spent desc 
+
+
+
+
+
+
+
+
+
+
+
+
